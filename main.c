@@ -12,7 +12,7 @@
 #include "nrf_log_default_backends.h"
 
 // ADXL372 I2C Address
-#define ADXL372_I2C_ADDRESS    0x53
+#define ADXL372_I2C_ADDRESS    0x1D
 
 // ADXL372 Registers
 #define ADXL372_REG_DEVID_AD    0x00
@@ -48,21 +48,22 @@ void ADXL372_write_register(uint8_t reg, uint8_t value) {
     APP_ERROR_CHECK(err_code);
 }
 
-uint8_t ADXL372_read_register(uint8_t reg) {
+uint16_t ADXL372_read_register(uint8_t reg) {
     ret_code_t err_code;
-    uint8_t data;
-    
-    
+    uint8_t data[2];
+
+    // Send the register address to the ADXL372
     err_code = nrf_drv_twi_tx(&m_twi, ADXL372_I2C_ADDRESS, &reg, sizeof(reg), true);
     APP_ERROR_CHECK(err_code);
-    
-    
-    err_code = nrf_drv_twi_rx(&m_twi, ADXL372_I2C_ADDRESS, &data, sizeof(data));
-    APP_ERROR_CHECK(err_code);
-    
-    return data;
-}
 
+    // Read data from the register
+    err_code = nrf_drv_twi_rx(&m_twi, ADXL372_I2C_ADDRESS, data, sizeof(data));
+    APP_ERROR_CHECK(err_code);
+
+    // Combine high and low bytes
+    uint16_t value = (data[1] << 8) | data[0];
+    return value;
+}
 
 void ADXL372_read_accel_data(int16_t *x, int16_t *y, int16_t *z) {
     uint8_t data[6];
@@ -117,19 +118,21 @@ int main(void)
 
     
 
-    while (true)
-    {
+   while (true) {
     int16_t x_accel, y_accel, z_accel;
     
-    ADXL372_read_accel_data(&x_accel, &y_accel, &z_accel);
+    x_accel = ADXL372_read_register(ADXL372_REG_XDATA);
+    y_accel = ADXL372_read_register(ADXL372_REG_YDATA);
+    z_accel = ADXL372_read_register(ADXL372_REG_ZDATA);
         
-    printf("X-Axis: %d\n", x_accel);
-    printf("Y-Axis: %d\n", y_accel);
-    printf("Z-Axis: %d\n", z_accel);
-
-    //NRF_LOG_INFO("Z-Axis: %d", z_accel);
+    NRF_LOG_INFO("X-Axis: %d", x_accel);
+    NRF_LOG_INFO("Y-Axis: %d", y_accel);
+    NRF_LOG_INFO("Z-Axis: %d", z_accel);
     
-    return 0;
-    }
+    NRF_LOG_FLUSH(); // Flush the log
+
+    // Delay for a short period before reading again
+    
+}
 }
 
